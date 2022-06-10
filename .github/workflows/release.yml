@@ -30,7 +30,7 @@ jobs:
           draft: false
           prerelease: false
           release_name: Automated Release ${{ github.ref }}
-          tag_name: ${{ github.event.inputs.name || github.ref }}
+          tag_name: '${{ github.event.inputs.name || github.ref }}'
           body: This is an automated release for ${{ github.ref }}.
         env:
           GITHUB_TOKEN: ${{ github.token }}
