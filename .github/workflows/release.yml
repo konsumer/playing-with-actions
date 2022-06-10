@@ -1,0 +1,85 @@
+# an example worflow that builds a bunch of targets
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'A name for this release'
+        required: true
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: create_release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          draft: false
+          prerelease: false
+          release_name: Automated Release ${{ github.ref }}
+          tag_name: ${{ github.event.inputs.name || github.ref }}
+          body: This is an automated release for ${{ github.ref }}.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+  
+  release-windows-x86_64:
+    needs: create_release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build for windows x86_64
+        run: cmake -G "Unix Makefiles" -B build-windows-x86_64 . ; cd build-windows-x86_64 ; make
+      - name: Upload windows artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ./build-windows-x86_64/hello.zip
+          asset_name: hello-windows-x86_64.zip
+          asset_content_type: application/octet-stream
+  
+  release-linux-x86_64:
+    needs: create_release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build for linux x86_64
+        run: cmake -B build-linux-x86_64 . ; cd build-linux-x86_64 ; make
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: hello-linux-x86_64
+          path: |
+            build-linux-x86_64/hello
+  
+  release-mac-x86_64:
+    needs: create_release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build for mac x86_64
+        run: cmake -B build-mac-x86_64 . ; cd build-mac-x86_64 ; make
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: hello-mac-x86_64
+          path: |
+            build-mac-x86_64/hello
+    
